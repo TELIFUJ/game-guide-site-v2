@@ -25,21 +25,39 @@ jobs:
       with:
         python-version: "3.11"
 
-    # ------------------------------------------
-    # 這裡只跑「從 CSV 建立資料」→ 最安全
-    # ------------------------------------------
     - name: Install deps
       run: |
         pip install pillow requests
 
-    - name: Build from CSV
+    # ==========================================
+    # Step 1：抓 BGG API（用 bgg_ids.txt）
+    # ==========================================
+    - name: Fetch BGG
+      env:
+        BGG_API_KEY: ${{ secrets.BGG_API_KEY }}
       run: |
-        python3 scripts/build_from_csv.py
+        python3 scripts/fetch_bgg.py
+        ls -lh data/bgg_data.json
+
+    # ==========================================
+    # Step 2：圖片下載 → assets/img
+    # ==========================================
+    - name: Download images
+      run: |
+        python3 scripts/download_images.py
+        ls -lh assets/img | head
+
+    # ==========================================
+    # Step 3：合併 CSV override + BGG → JSON
+    # ==========================================
+    - name: Build JSON
+      run: |
+        python3 scripts/build_json.py
         ls -lh site/data/games.json
 
-    # ------------------------------------------
-    # 上傳產生出的靜態網站 artifact（給 deploy 用）
-    # ------------------------------------------
+    # ==========================================
+    # Step 4：上傳靜態網站 artifact
+    # ==========================================
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
