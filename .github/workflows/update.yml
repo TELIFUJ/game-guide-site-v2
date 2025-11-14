@@ -5,7 +5,7 @@ on:
   push:
     branches: [ "main" ]
   schedule:
-    - cron: "0 18 * * *"   # 每天台灣凌晨 2 點
+    - cron: "0 18 * * *"   # 每天台灣時間 02:00 執行
 
 permissions:
   contents: write
@@ -27,37 +27,47 @@ jobs:
 
     - name: Install deps
       run: |
-        pip install pillow requests
+        pip install requests pillow
 
-    # ==========================================
-    # Step 1：抓 BGG API（用 bgg_ids.txt）
-    # ==========================================
-    - name: Fetch BGG
+    # ------------------------------------------------------
+    # ① 從 bgg_ids.txt 取出全部 ID → 呼叫 BGG API
+    #     輸出 data/bgg_data.json
+    # ------------------------------------------------------
+    - name: Fetch BGG API
       env:
         BGG_API_KEY: ${{ secrets.BGG_API_KEY }}
       run: |
         python3 scripts/fetch_bgg.py
         ls -lh data/bgg_data.json
 
-    # ==========================================
-    # Step 2：圖片下載 → assets/img
-    # ==========================================
+    # ------------------------------------------------------
+    # ② 套用 taxonomy / 價格 / manual.csv override
+    #     產出新的 games_full.json
+    # ------------------------------------------------------
+    - name: Apply taxonomy + overrides
+      run: |
+        python3 scripts/apply_taxonomy_and_price.py
+        ls -lh data/games_full.json
+
+    # ------------------------------------------------------
+    # ③ 下載圖片 → site/assets/img/
+    # ------------------------------------------------------
     - name: Download images
       run: |
         python3 scripts/download_images.py
-        ls -lh assets/img | head
+        ls -lh site/assets/img | head
 
-    # ==========================================
-    # Step 3：合併 CSV override + BGG → JSON
-    # ==========================================
-    - name: Build JSON
+    # ------------------------------------------------------
+    # ④ 建立網站最終版資料 → site/data/games.json
+    # ------------------------------------------------------
+    - name: Build final site JSON
       run: |
         python3 scripts/build_json.py
         ls -lh site/data/games.json
 
-    # ==========================================
-    # Step 4：上傳靜態網站 artifact
-    # ==========================================
+    # ------------------------------------------------------
+    # 上傳到 GitHub Pages
+    # ------------------------------------------------------
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
